@@ -38,6 +38,7 @@ export const plantById = id => PLANTS.find(plant => plant.id === id) || PLANTS[0
 export function PlantArt({ id, stage = 4, className = "", title }) {
   const plant = plantById(id);
   const safeStage = Math.max(0, Math.min(4, Number(stage)));
+  const plantIndex = Math.max(0, PLANTS.findIndex(item => item.id === plant.id));
   const scale = [0.3, 0.43, 0.62, 0.82, 1][safeStage];
   const translateY = 98 - 98 * scale;
   const common = { stroke: "#5d684f", strokeWidth: "2.2", strokeLinecap: "round", strokeLinejoin: "round" };
@@ -49,6 +50,29 @@ export function PlantArt({ id, stage = 4, className = "", title }) {
         <path d="M36 104c8-11 20-11 28 0" fill="#956f50" {...common} />
         <ellipse cx="50" cy="99" rx="8" ry="5" fill={plant.main} transform="rotate(-14 50 99)" />
       </svg>
+    );
+  }
+
+  if (safeStage >= 2) {
+    const sheet = plantIndex < 16 ? "a" : "b";
+    const sheetIndex = plantIndex % 16;
+    const column = sheetIndex % 4;
+    const row = Math.floor(sheetIndex / 4);
+    return (
+      <span
+        className={`plant-art plant-sprite stage-${safeStage} ${className}`}
+        role="img"
+        aria-label={title || plant.name}
+      >
+        <span
+          className="plant-sprite-image"
+          style={{
+            "--plant-sheet": `url("plants/plant-collection-${sheet}-final.png")`,
+            "--plant-x": `${column * 100 / 3}%`,
+            "--plant-y": `${row * 100 / 3}%`
+          }}
+        />
+      </span>
     );
   }
 
