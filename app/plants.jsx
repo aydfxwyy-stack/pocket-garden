@@ -33,6 +33,8 @@ export const PLANTS = [
   { id: "night_tree", name: "晚安星树", kind: "fantasy", main: "#526aa0", light: "#9db2df", leaf: "#536f76" }
 ];
 
+const PLANT_ASSET_BASE = process.env.NEXT_PUBLIC_BASE_PATH || "";
+
 export const plantById = id => PLANTS.find(plant => plant.id === id) || PLANTS[0];
 
 export function PlantArt({ id, stage = 4, className = "", title }) {
@@ -67,7 +69,7 @@ export function PlantArt({ id, stage = 4, className = "", title }) {
         <span
           className="plant-sprite-image"
           style={{
-            "--plant-sheet": `url("plants/plant-collection-${sheet}-final.png")`,
+            "--plant-sheet": `url("${PLANT_ASSET_BASE}/plants/plant-collection-${sheet}-final.png")`,
             "--plant-x": `${column * 100 / 3}%`,
             "--plant-y": `${row * 100 / 3}%`
           }}
