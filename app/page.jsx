@@ -248,12 +248,11 @@ export default function Home() {
 }
 
 function Today({ data, update, onOpen, onQuick, onNew, onMood }) {
-  const [filter, setFilter] = useState("all");
   const active = data.tasks.filter(task => !task.archived);
-  const filtered = filter === "all" ? active : active.filter(task => task.categoryId === filter);
-  const tasks = sortTasks(filtered, data);
+  const tasks = sortTasks(active, data);
   const todayRecords = data.records.filter(record => record.date === todayKey());
   const todayMood = data.moods.find(item => item.date === todayKey());
+  const mood = MOODS.find(item => item.id === todayMood?.mood);
   const greeting = timeGreeting();
   const moveTask = (task, direction) => update(next => {
     const ordered = next.tasks.filter(item => !item.archived).sort((a,b) => a.sortOrder - b.sortOrder);
@@ -266,63 +265,50 @@ function Today({ data, update, onOpen, onQuick, onNew, onMood }) {
   });
   return (
     <>
-      <section className="hero-card">
-        <div><span className="soft-label">{greeting}</span><h2>小步前进，也算抵达。</h2><p>今天完成了 <b>{todayRecords.length}</b> 次打卡</p></div>
-        <div className="hero-bloom"><PlantArt id="peach" stage={todayRecords.length ? 4 : 2} /></div>
+      <section className="today-overview">
+        <div className="today-greeting">
+          <span>{greeting}</span>
+          <h2>小步前进，也算抵达。</h2>
+          <p>今天已完成 <b>{todayRecords.length}</b> 次打卡</p>
+        </div>
+        <button className={`today-mood ${todayMood ? "filled" : ""}`} onClick={onMood}>
+          <span>{mood?.icon || "♡"}</span>
+          <b>{mood?.name || "心情"}</b>
+        </button>
       </section>
 
-      <button className={`mood-card ${todayMood ? "filled" : ""}`} onClick={onMood}>
-        <span className="mood-face">{todayMood ? MOODS.find(item => item.id === todayMood.mood)?.icon : "♡"}</span>
-        <span><b>{todayMood ? `今天感到${MOODS.find(item => item.id === todayMood.mood)?.name}` : "记录今天的心情"}</b><small>{todayMood?.note || "给今天留下一点温柔的注脚"}</small></span>
-        <i>›</i>
-      </button>
-
-      <div className="chips">
-        <button className={filter === "all" ? "selected" : ""} onClick={() => setFilter("all")}>全部</button>
-        {data.categories.map(category => <button key={category.id} className={filter === category.id ? "selected" : ""} onClick={() => setFilter(category.id)}>{category.icon} {category.name}</button>)}
-      </div>
-
       <div className="task-toolbar">
+        <strong>{tasks.length} 个进行中的任务</strong>
         <label><span>排序</span><select value={data.settings.todaySort} onChange={event => update(next => next.settings.todaySort = event.target.value)}>
           <option value="manual">自定义</option><option value="created">最新创建</option><option value="progress">按进度</option><option value="name">按名称</option>
         </select></label>
-        <div className="view-switch"><button className={data.settings.todayView === "list" ? "active" : ""} onClick={() => update(next => next.settings.todayView = "list")}>☰</button><button className={data.settings.todayView === "compact" ? "active" : ""} onClick={() => update(next => next.settings.todayView = "compact")}>▦</button></div>
       </div>
 
-      <div className={`task-list ${data.settings.todayView === "compact" ? "compact-grid" : ""}`}>
-        {tasks.length ? tasks.map(task => <TaskCard key={task.id} task={task} data={data} compact={data.settings.todayView === "compact"} manual={data.settings.todaySort === "manual"} onMove={moveTask} onOpen={onOpen} onQuick={onQuick} />) :
+      <div className="task-list dense-list">
+        {tasks.length ? tasks.map(task => <TaskCard key={task.id} task={task} data={data} manual={data.settings.todaySort === "manual"} onMove={moveTask} onOpen={onOpen} onQuick={onQuick} />) :
           <Empty icon="🌷" title="这里还没有任务" text="种下第一颗任务种子吧。" action={onNew} />}
       </div>
     </>
   );
 }
 
-function TaskCard({ task, data, compact, manual, onMove, onOpen, onQuick }) {
+function TaskCard({ task, data, manual, onMove, onOpen, onQuick }) {
   const progress = taskProgress(task, data.records);
   const category = data.categories.find(item => item.id === task.categoryId);
   const checkedToday = data.records.some(record => record.taskId === task.id && record.date === todayKey());
-  const stage = plantStage(progress.percent, progress.done);
-  if (compact) return (
-    <article className={`compact-task ${progress.done ? "done" : ""}`} style={{ "--accent": task.color }} onClick={() => onOpen(task.id)}>
-      <div className="compact-plant"><PlantArt id={task.plantId} stage={stage} /></div>
-      <span className="tiny-icon">{task.icon}</span>
-      <h3>{task.name}</h3><p>{fmt(progress.current)} / {fmt(task.target)} {task.unit}</p>
-      <button className={checkedToday ? "checked" : ""} disabled={progress.done || (task.type === "streak" && checkedToday)} onClick={event => { event.stopPropagation(); onQuick(task); }}>
-        {progress.done ? "已完成" : checkedToday && task.type === "streak" ? "今日已打卡" : task.type === "quantity" ? "＋ 填写进度" : "✓ 快速打卡"}
-      </button>
-    </article>
-  );
+  const disabled = progress.done || (task.type === "streak" && checkedToday);
   return (
     <article className={`task-card ${progress.done ? "done" : ""}`} style={{ "--accent": task.color }} onClick={() => onOpen(task.id)}>
-      <div className="task-plant"><PlantArt id={task.plantId} stage={stage} /></div>
+      <span className="task-icon" aria-hidden="true">{task.icon}</span>
       <div className="task-main">
-        <div className="task-title"><div><h3>{task.name}</h3><p>{category?.name || "未分类"} · 第 {task.stageNumber || 1} 阶段</p></div><span>{progress.done ? "✓" : `${Math.round(progress.percent)}%`}</span></div>
+        <div className="task-title"><h3>{task.name}</h3><span>{progress.done ? "✓" : `${Math.round(progress.percent)}%`}</span></div>
+        <div className="task-subline"><span>{category?.name || "未分类"} · 第 {task.stageNumber || 1} 阶段</span><b>{fmt(progress.current)} / {fmt(task.target)} {task.unit}</b></div>
         <div className="progress"><i style={{ width: `${progress.percent}%` }} /></div>
-        <div className="task-meta"><span>{fmt(progress.current)} / {fmt(task.target)} {task.unit}</span><span>{plantById(task.plantId).name}</span></div>
       </div>
-      {manual && <div className="order-buttons"><button aria-label="上移" onClick={event => { event.stopPropagation(); onMove(task, -1); }}>↑</button><button aria-label="下移" onClick={event => { event.stopPropagation(); onMove(task, 1); }}>↓</button></div>}
-      <button className={`water-button ${checkedToday ? "checked" : ""}`} disabled={progress.done || (task.type === "streak" && checkedToday)} onClick={event => { event.stopPropagation(); onQuick(task); }}>
-        {progress.done ? "这株植物已经成熟" : checkedToday && task.type === "streak" ? "✓ 今日已完成" : task.type === "quantity" ? "＋ 填写本次进度" : "✓ 今日快速打卡"}
+      {manual && <div className="order-buttons inline"><button aria-label="上移" onClick={event => { event.stopPropagation(); onMove(task, -1); }}>↑</button><button aria-label="下移" onClick={event => { event.stopPropagation(); onMove(task, 1); }}>↓</button></div>}
+      <button className={`quick-check ${checkedToday ? "checked" : ""}`} disabled={disabled} onClick={event => { event.stopPropagation(); onQuick(task); }} aria-label={task.type === "quantity" ? "填写本次进度" : "今日快速打卡"}>
+        <b>{progress.done || (checkedToday && task.type === "streak") ? "✓" : task.type === "quantity" ? "＋" : "✓"}</b>
+        <small>{progress.done ? "完成" : checkedToday && task.type === "streak" ? "已打卡" : task.type === "quantity" ? "记录" : "打卡"}</small>
       </button>
     </article>
   );
